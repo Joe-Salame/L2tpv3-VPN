@@ -1,0 +1,332 @@
+#!/bin/bash -x
+
+# graphe : INFRA PROJET
+
+# créer les différents namespaces
+ip netns add rout1
+ip netns add rout2
+ip netns add routA
+ip netns add routB
+ip netns add poste1
+ip netns add poste2
+ip netns add poste3
+ip netns add poste4
+
+# créer les switches
+ovs-vsctl add-br resB
+ovs-vsctl add-br resC
+ovs-vsctl add-br resD
+ovs-vsctl add-br resE
+ovs-vsctl add-br internet
+
+
+# configurer rout1
+ip link add rout1-eth0 type veth peer name resC-rout1
+ip link add rout1-eth1 type veth peer name resD-rout1
+ip link set rout1-eth0 netns rout1
+ip link set rout1-eth1 netns rout1
+ovs-vsctl add-port resD resD-rout1
+ip link set dev resD-rout1 up
+ovs-vsctl add-port resC resC-rout1
+ip link set dev resC-rout1 up
+ip netns exec rout1 ip link set dev lo up
+ip netns exec rout1 ip link set dev rout1-eth0 up
+ip netns exec rout1 ip link set dev rout1-eth1 up
+
+#ip netns exec rout1 ip link add link rout1-eth1 name rout1-eth1.100 type vlan id 100
+#ip netns exec rout1 ip link set rout1-eth1.100 up
+#ip netns exec rout1 ip addr add dev rout1-eth1.100 192.168.100.254/24
+
+#ip netns exec rout1 ip link add link rout1-eth1 name rout1-eth1.200 type vlan id 200
+#ip netns exec rout1 ip link set rout1-eth1.200 up
+#ip netns exec rout1 ip addr add dev rout1-eth1.200 192.168.200.254/24
+
+ip netns exec rout1 ip a add dev rout1-eth0 172.16.1.253/24
+
+ip netns exec rout1 sudo sysctl net.ipv4.conf.all.forwarding=1
+
+# configurer rout2
+ip link add rout2-eth0 type veth peer name resB-rout2
+ip link add rout2-eth1 type veth peer name resE-rout2
+ip link set rout2-eth0 netns rout2
+ip link set rout2-eth1 netns rout2
+ovs-vsctl add-port resE resE-rout2
+ip link set dev resE-rout2 up
+ovs-vsctl add-port resB resB-rout2
+ip link set dev resB-rout2 up
+ip netns exec rout2 ip link set dev lo up
+ip netns exec rout2 ip link set dev rout2-eth0 up
+ip netns exec rout2 ip link set dev rout2-eth1 up
+
+#ip netns exec rout2 ip link add link rout2-eth1 name rout2-eth1.100 type vlan id 100
+#ip netns exec rout2 ip link set rout2-eth1.100 up
+#ip netns exec rout2 ip addr add dev rout2-eth1.100 192.168.100.253/24
+
+#ip netns exec rout2 ip link add link rout2-eth1 name rout2-eth1.200 type vlan id 200
+#ip netns exec rout2 ip link set rout2-eth1.200 up
+#ip netns exec rout2 ip addr add dev rout2-eth1.200 192.168.200.253/24
+
+ip netns exec rout2 ip a add dev rout2-eth0 172.16.2.253/24
+ip netns exec rout2 sudo sysctl net.ipv4.conf.all.forwarding=1
+
+# configurer routA
+ip link add routA-eth0 type veth peer name resC-routA
+ip link add routA-eth1 type veth peer name internet-routA
+ip link set routA-eth0 netns routA
+ip link set routA-eth1 netns routA
+ovs-vsctl add-port resC resC-routA
+ip link set dev resC-routA up
+ovs-vsctl add-port internet internet-routA
+ip link set dev internet-routA up
+ip netns exec routA ip link set dev lo up
+ip netns exec routA ip link set dev routA-eth0 up
+ip netns exec routA ip link set dev routA-eth1 up
+ip netns exec routA ip a add dev routA-eth0 172.16.1.254/24
+ip netns exec routA ip a add dev routA-eth1 10.87.0.1/24
+ip netns exec routA sudo sysctl net.ipv4.conf.all.forwarding=1
+
+# configurer routB
+ip link add routB-eth0 type veth peer name resB-routB
+ip link add routB-eth1 type veth peer name internet-routB
+ip link set routB-eth0 netns routB
+ip link set routB-eth1 netns routB
+ovs-vsctl add-port resB resB-routB
+ip link set dev resB-routB up
+ovs-vsctl add-port internet internet-routB
+ip link set dev internet-routB up
+ip netns exec routB ip link set dev lo up
+ip netns exec routB ip link set dev routB-eth0 up
+ip netns exec routB ip link set dev routB-eth1 up
+ip netns exec routB ip a add dev routB-eth0 172.16.2.254/24
+ip netns exec routB ip a add dev routB-eth1 10.87.0.2/24
+ip netns exec routB sudo sysctl net.ipv4.conf.all.forwarding=1
+
+
+# configurer poste1
+ip link add poste1-eth0 type veth peer name resE-poste1
+ip link set poste1-eth0 netns poste1
+ovs-vsctl add-port resE resE-poste1
+ip link set dev resE-poste1 up
+ip netns exec poste1 ip link set dev lo up
+ip netns exec poste1 ip link set dev poste1-eth0 up
+#ip netns exec poste1 ip r add default via 192.168.100.253
+#ip netns exec poste1 ip a add dev poste1-eth0 192.168.100.1/24
+
+
+#vlan poste1
+ip netns exec poste1 ip link add link poste1-eth0 name poste1-eth0.100 type vlan id 100
+#ip netns exec poste1 ip addr add dev poste1-eth0.100 192.168.100.1/24 brd +
+ip netns exec poste1 ip link set dev poste1-eth0.100 up
+
+# configurer poste2
+ip link add poste2-eth0 type veth peer name resE-poste2
+ip link set poste2-eth0 netns poste2
+ovs-vsctl add-port resE resE-poste2
+ip link set dev resE-poste2 up
+ip netns exec poste2 ip link set dev lo up
+ip netns exec poste2 ip link set dev poste2-eth0 up
+#ip netns exec poste2 ip r add default via 192.168.200.253
+#ip netns exec poste2 ip a add dev poste2-eth0 192.168.200.1/24
+
+
+#vlan poste2
+ip netns exec poste2 ip link add link poste2-eth0 name poste2-eth0.200 type vlan id 200
+#ip netns exec poste2 ip addr add dev poste2-eth0.200 192.168.200.1/24 brd +
+ip netns exec poste2 ip link set dev poste2-eth0.200 up
+
+# configurer poste3
+ip link add poste3-eth0 type veth peer name resD-poste3
+ip link set poste3-eth0 netns poste3
+ovs-vsctl add-port resD resD-poste3
+ip link set dev resD-poste3 up
+ip netns exec poste3 ip link set dev lo up
+ip netns exec poste3 ip link set dev poste3-eth0 up
+#ip netns exec poste3 ip r add default via 192.168.100.254
+#ip netns exec poste3 ip a add dev poste3-eth0 192.168.100.2/24
+
+
+
+
+#vlan poste3
+ip netns exec poste3 ip link add link poste3-eth0 name poste3-eth0.100 type vlan id 100
+#ip netns exec poste3 ip addr add dev poste3-eth0.100 192.168.100.2/24 brd +
+ip netns exec poste3 ip link set dev poste3-eth0.100 up
+#ovs-vsctl set port resD-poste3 tag=100
+
+# configurer poste4
+ip link add poste4-eth0 type veth peer name resD-poste4
+ip link set poste4-eth0 netns poste4
+ovs-vsctl add-port resD resD-poste4
+ip link set dev resD-poste4 up
+ip netns exec poste4 ip link set dev lo up
+ip netns exec poste4 ip link set dev poste4-eth0 up
+#ip netns exec poste4 ip r add default via 192.168.200.254
+#ip netns exec poste4 ip a add dev poste4-eth0 192.168.200.2/24
+
+
+#vlan poste4
+ip netns exec poste4 ip link add link poste4-eth0 name poste4-eth0.200 type vlan id 200
+#ip netns exec poste4 ip addr add dev poste4-eth0.200 192.168.200.2/24 brd +
+ip netns exec poste4 ip link set dev poste4-eth0.200 up
+
+
+
+
+ip netns exec rout1 ip route add default via 172.16.1.254
+ip netns exec rout2 ip route add default via 172.16.2.254
+
+ip netns exec routA ip route add default via 10.87.0.254 
+ip netns exec routB ip route add default via 10.87.0.254 
+
+ip netns exec routA ip route add 192.168.100.0/24 via 10.87.0.2
+ip netns exec routA ip route add 192.168.200.0/24 via 10.87.0.2
+ip netns exec routB ip route add 192.168.100.0/24 via 10.87.0.1
+ip netns exec routB ip route add 192.168.200.0/24 via 10.87.0.1
+
+ip netns exec routA ip route add 172.16.2.0/24 via 10.87.0.2
+ip netns exec routB ip route add 172.16.1.0/24 via 10.87.0.1
+
+
+#tunnel rout1
+ip netns exec rout1 ip l2tp add tunnel remote 172.16.2.253 local 172.16.1.253 encap ip tunnel_id 3000 peer_tunnel_id 4000
+#ip netns exec rout1 ip l2tp add tunnel remote 172.16.2.253 local 172.16.1.253 encap udp tunnel_id 3000 peer_tunnel_id 4000 udp_sport 1234 udp_dport 4321
+ip netns exec rout1 ip l2tp add session tunnel_id 3000 session_id 1000 peer_session_id 2000
+ip netns exec rout1 ip link set l2tpeth0 up
+#ip netns exec rout1 ip a flush dev r1-eth1
+ip netns exec rout1 brctl addbr tunnel
+ip netns exec rout1 brctl addif tunnel l2tpeth0
+ip netns exec rout1 ip link set dev l2tpeth0 #mtu 1500
+ip netns exec rout1 brctl addif tunnel rout1-eth1
+ip netns exec rout1 ip link set tunnel up
+ip netns exec rout1 ip link add link tunnel name tunnel.100 type vlan id 100
+ip netns exec rout1 ip link set tunnel.100 up
+ip netns exec rout1 ip link add link tunnel name tunnel.200 type vlan id 200
+ip netns exec rout1 ip link set tunnel.200 up
+ip netns exec rout1 ip addr add 192.168.100.254/24 dev tunnel.100
+ip netns exec rout1 ip addr add 192.168.200.254/24 dev tunnel.200
+
+#tunnel rout2
+ip netns exec rout2 ip l2tp add tunnel remote 172.16.1.253 local 172.16.2.253 encap ip tunnel_id 4000 peer_tunnel_id 3000
+#ip netns exec rout2 ip l2tp add tunnel remote 172.16.1.253 local 172.16.2.253 encap udp tunnel_id 4000 peer_tunnel_id 3000 udp_sport 4321 udp_dport 1234
+ip netns exec rout2 ip l2tp add session tunnel_id 4000 session_id 2000 peer_session_id 1000
+ip netns exec rout2 ip link set l2tpeth0 up
+#ip netns exec rout2 ip a flush dev r2-eth1
+ip netns exec rout2 brctl addbr tunnel
+ip netns exec rout2 brctl addif tunnel l2tpeth0
+ip netns exec rout2 ip link set dev l2tpeth0 #mtu 1500
+ip netns exec rout2 brctl addif tunnel rout2-eth1
+ip netns exec rout2 ip link set tunnel up
+ip netns exec rout2 ip link add link tunnel name tunnel.100 type vlan id 100
+ip netns exec rout2 ip link set tunnel.100 up
+ip netns exec rout2 ip link add link tunnel name tunnel.200 type vlan id 200
+ip netns exec rout2 ip link set tunnel.200 up
+ip netns exec rout2 ip addr add 192.168.100.253/24 dev tunnel.100
+ip netns exec rout2 ip addr add 192.168.200.253/24 dev tunnel.200
+
+#internet
+ip link add root-eth0 type veth peer name net-root
+ip link set root-eth0
+ovs-vsctl add-port internet net-root
+ip link set dev net-root up
+ip link set dev root-eth0 up
+ip link set dev lo up
+ip a add dev root-eth0 10.87.0.254/24
+ip link set root-eth0 up
+sysctl net.ipv4.conf.all.forwarding=1
+
+ip netns exec rout1 iptables -t nat -A POSTROUTING -s 192.168.100.0/24 -j MASQUERADE -o rout1-eth0
+ip netns exec rout1 iptables -t nat -A POSTROUTING -s 192.168.200.0/24 -j MASQUERADE -o rout1-eth0
+ip netns exec routA iptables -t nat -A POSTROUTING -s 172.16.1.0/24 -j MASQUERADE -o routA-eth1
+ip netns exec routB iptables -t nat -A POSTROUTING -s 172.16.2.0/24 -j MASQUERADE -o routB-eth1
+ip netns exec rout2 iptables -t nat -A POSTROUTING -s 192.168.100.0/24 -j MASQUERADE -o rout2-eth0
+ip netns exec rout2 iptables -t nat -A POSTROUTING -s 192.168.200.0/24 -j MASQUERADE -o rout2-eth0
+
+
+#DHCP
+ip netns exec rout1 dnsmasq -d -z -i tunnel.100 --except-interface=lo -F 192.168.100.1,192.168.100.2,255.255.255.0 -l /tmp/dnsmasq.leases & 
+ip netns exec rout1 dnsmasq -d -z -i tunnel.200 --except-interface=lo -F 192.168.200.1,192.168.200.2,255.255.255.0 -l /tmp/dnsmasq.leases & 
+
+ip netns exec rout2 dnsmasq -d -z -i tunnel.100 --except-interface=lo -F 192.168.100.3,192.168.100.4,255.255.255.0 -l /tmp/dnsmasq.leases &
+ip netns exec rout2 dnsmasq -d -z -i tunnel.200 --except-interface=lo -F 192.168.200.3,192.168.200.4,255.255.255.0 -l /tmp/dnsmasq.leases &
+
+#DHCP request
+ip netns exec poste1 dhclient &
+ip netns exec poste2 dhclient &
+ip netns exec poste4 dhclient &
+ip netns exec poste3 dhclient &
+
+
+#---------------------------Vous pouvez decommenter la section que vous vouler pour lancer le script---------------------------------------#
+
+#tunnel Gretap 1
+#ip netns exec rout1 ip link add eoip1 type gretap remote 172.16.2.253 local 172.16.1.253 nopmtudisc
+#ip netns exec rout1 ip link set dev eoip1 up
+#ip netns exec rout1 brctl addbr tunnel
+#ip netns exec rout1 brctl addif tunnel eoip1
+#ip netns exec rout1 ip link set dev eoip1 
+#ip netns exec rout1 brctl addif tunnel rout1-eth1
+#ip netns exec rout1 ip link set tunnel up
+#ip netns exec rout1 ip link add link tunnel name tunnel.100 type vlan id 100
+#ip netns exec rout1 ip link set tunnel.100 up
+#ip netns exec rout1 ip link add link tunnel name tunnel.200 type vlan id 200
+#ip netns exec rout1 ip link set tunnel.200 up
+#ip netns exec rout1 ip addr add 192.168.100.254/24 dev tunnel.100
+#ip netns exec rout1 ip addr add 192.168.200.254/24 dev tunnel.200
+
+
+#tunnel Gretap 2
+#ip netns exec rout2 ip link add eoip1 type gretap remote 172.16.1.253 local 172.16.2.253 nopmtudisc
+#ip netns exec rout2 ip link set dev eoip1 up
+#ip netns exec rout2 brctl addbr tunnel
+#ip netns exec rout2 brctl addif tunnel eoip1
+#ip netns exec rout2 ip link set dev eoip1 
+#ip netns exec rout2 brctl addif tunnel rout2-eth1
+#ip netns exec rout2 ip link set tunnel up
+#ip netns exec rout2 ip link add link tunnel name tunnel.100 type vlan id 100
+#ip netns exec rout2 ip link set tunnel.100 up
+#ip netns exec rout2 ip link add link tunnel name tunnel.200 type vlan id 200
+#ip netns exec rout2 ip link set tunnel.200 up
+#ip netns exec rout2 ip addr add 192.168.100.253/24 dev tunnel.100
+#ip netns exec rout2 ip addr add 192.168.200.253/24 dev tunnel.200
+
+
+#IPSec
+#rout1
+#ip netns exec rout1 ip xfrm state flush
+#ip netns exec rout1 ip xfrm policy flush
+
+#ip netns exec rout1 ip xfrm state add src 172.16.1.253 dst 172.16.2.253 proto esp spi 0x12345678 reqid 0x12345678 mode transport  auth sha256 0x323730ed6f1b9ff0cb084af15b197e862b7c18424a7cdfb74cd385ae23bc4f17 enc "rfc3686(ctr(aes))" 0x27b90b8aec1ee32a8150a664e8faac761e2d305b
+#ip netns exec rout1 ip xfrm state add src 172.16.2.253 dst 172.16.1.253 proto esp spi 0x12345678 reqid 0x12345678 mode transport  auth sha256 0x44d65c50b7581fd3c8169cf1fa0ebb24e0d55755b1dc43a98b539bb144f2067f enc "rfc3686(ctr(aes))" 0x9df7983cb7c7eb2af01d88d36e462b5f01d10bc1
+#ip netns exec rout1 ip xfrm policy add src 172.16.2.253 dst 172.16.1.253 dir in tmpl src 172.16.2.253  dst 172.16.1.253 proto esp reqid 0x12345678 mode transport
+#ip netns exec rout1 ip xfrm policy add src 172.16.1.253 dst 172.16.2.253 dir out tmpl src 172.16.1.253 dst 172.16.2.253 proto esp reqid 0x12345678 mode transport
+
+#rout2
+#ip netns exec rout2 ip xfrm state flush
+#ip netns exec rout2 ip xfrm policy flush
+
+#ip netns exec rout2 ip xfrm state add src 172.16.1.253 dst 172.16.2.253 proto esp spi 0x12345678 reqid 0x12345678 mode transport  auth sha256 0x323730ed6f1b9ff0cb084af15b197e862b7c18424a7cdfb74cd385ae23bc4f17 enc "rfc3686(ctr(aes))" 0x27b90b8aec1ee32a8150a664e8faac761e2d305b
+#ip netns exec rout2 ip xfrm state add src 172.16.2.253 dst 172.16.1.253 proto esp spi 0x12345678 reqid 0x12345678 mode transport  auth sha256 0x44d65c50b7581fd3c8169cf1fa0ebb24e0d55755b1dc43a98b539bb144f2067f enc "rfc3686(ctr(aes))" 0x9df7983cb7c7eb2af01d88d36e462b5f01d10bc1
+#ip netns exec rout2 ip xfrm policy add src 172.16.2.253 dst 172.16.1.253 dir out tmpl src 172.16.2.253  dst 172.16.1.253 proto esp reqid 0x12345678 mode transport
+#ip netns exec rout2 ip xfrm policy add src 172.16.1.253 dst 172.16.2.253 dir in tmpl src 172.16.1.253 dst 172.16.2.253 proto esp reqid 0x12345678 mode transport
+
+
+#Traffic Interdit vlans firewall
+#ip netns exec rout1 iptables -t filter -A FORWARD -s 192.168.100.0/24 -d 192.168.200.0/24 -j REJECT --reject-with icmp-net-unreachable
+#ip netns exec rout1 iptables -t filter -A FORWARD -s 192.168.200.0/24 -d 192.168.100.0/24 -j REJECT --reject-with icmp-net-unreachable
+#ip netns exec rout2 iptables -t filter -A FORWARD -s 192.168.100.0/24 -d 192.168.200.0/24 -j REJECT --reject-with icmp-net-unreachable
+#ip netns exec rout2 iptables -t filter -A FORWARD -s 192.168.200.0/24 -d 192.168.100.0/24 -j REJECT --reject-with icmp-net-unreachable
+
+#Traffic Interdit vlans policy routing
+#ip netns exec rout1 ip rule add from 192.168.100.0/24 to 192.168.200.0/24 blackhole
+#ip netns exec rout1 ip rule add from 192.168.200.0/24 to 192.168.100.0/24 blackhole
+#ip netns exec rout2 ip rule add from 192.168.100.0/24 to 192.168.200.0/24 blackhole
+#ip netns exec rout2 ip rule add from 192.168.200.0/24 to 192.168.100.0/24 blackhole
+
+
+
+
+
+
+
+
+
